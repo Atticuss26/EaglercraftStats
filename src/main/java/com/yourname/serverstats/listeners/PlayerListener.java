@@ -15,13 +15,11 @@ public class PlayerListener implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent e) {
-        // trigger an immediate stats update when someone joins
-        plugin.getStatsCollector().collectStats();
+        plugin.getStatsCollector().collectStats();                         :contentReference[oaicite:10]{index=10}
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent e) {
-        // likewise on quit
         plugin.getStatsCollector().collectStats();
     }
 }
