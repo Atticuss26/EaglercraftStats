@@ -63,7 +63,7 @@ public class StatsCollector {
     private double calculateTPS() {
         // This is a simplistic approach - for a more accurate TPS calculation
         // you should implement a moving average over multiple sample points
-        return Math.min(20, Bukkit.getTPS()[0]);
+        return Math.min(20, Bukkit.getServer().getTPS()[0];
     }
     
     public void updatePlayerStats() {
