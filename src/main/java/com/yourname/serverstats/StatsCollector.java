@@ -3,7 +3,6 @@ package com.yourname.serverstats;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.plugin.Plugin;
-import com.destroystokyo.paper.ServerPaperMethods; // for getTPS()
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
@@ -21,46 +20,44 @@ public class StatsCollector {
         this.plugin = plugin;
         this.startTime = System.currentTimeMillis();
 
-        // also schedule a per-second updater to tally playtime
-        Bukkit.getScheduler().runTaskTimer(this.plugin, this::updateCumulative, 20L, 20L);
+        // tally per-second playtime and max-online
+        Bukkit.getScheduler().runTaskTimer(plugin, this::updateCumulative, 20L, 20L); :contentReference[oaicite:8]{index=8}
     }
 
     public Map<String, Object> collectStats() {
         Map<String, Object> out = new HashMap<>();
 
-        // basic server info
         out.put("version", Bukkit.getVersion());
         out.put("online", Bukkit.getOnlinePlayers().size());
         out.put("maxPlayers", Bukkit.getMaxPlayers());
         out.put("uptimeSec", (System.currentTimeMillis() - startTime) / 1000L);
-        // Paper-specific: instant TPS (1-minute average)
-        double tps = ((ServerPaperMethods) Bukkit.getServer()).getTPS()[0];
+
+        // Paper’s Server#getTPS() gives [1m,5m,15m] averages—take the first element. :contentReference[oaicite:9]{index=9}
+        double tps = Bukkit.getServer().getTPS()[0];
         out.put("tps", Math.min(20.0, tps));
 
-        // JVM memory
+        // JVM memory metrics
         MemoryMXBean mem = ManagementFactory.getMemoryMXBean();
-        long usedMB = mem.getHeapMemoryUsage().getUsed() / (1024 * 1024);
-        long maxMB  = mem.getHeapMemoryUsage().getMax()  / (1024 * 1024);
-        out.put("memUsedMB", usedMB);
-        out.put("memMaxMB",  maxMB);
+        out.put("memUsedMB", mem.getHeapMemoryUsage().getUsed() / (1024*1024));
+        out.put("memMaxMB",  mem.getHeapMemoryUsage().getMax()  / (1024*1024));
 
-        // OS load
+        // OS load average
         OperatingSystemMXBean os = ManagementFactory.getOperatingSystemMXBean();
         out.put("loadAvg", os.getSystemLoadAverage());
 
-        // world details
+        // per-world stats
         Map<String, Map<String, Object>> worlds = new HashMap<>();
         for (World w : Bukkit.getWorlds()) {
             Map<String, Object> info = new HashMap<>();
-            info.put("entities", w.getEntities().size());
-            info.put("chunks", w.getLoadedChunks().length);
-            info.put("players", w.getPlayers().size());
+            info.put("entities",     w.getEntities().size());
+            info.put("chunks",       w.getLoadedChunks().length);
+            info.put("players",      w.getPlayers().size());
             worlds.put(w.getName(), info);
         }
         out.put("worlds", worlds);
 
-        // cumulative
-        out.put("maxOnlineEver", maxPlayersEver);
+        // cumulative stats
+        out.put("maxOnlineEver",    maxPlayersEver);
         out.put("totalPlayTimeSec", totalPlayTime);
 
         return out;
@@ -68,7 +65,7 @@ public class StatsCollector {
 
     private void updateCumulative() {
         int curr = Bukkit.getOnlinePlayers().size();
-        totalPlayTime += curr;      // one second per player per tick
+        totalPlayTime += curr;
         if (curr > maxPlayersEver) {
             maxPlayersEver = curr;
         }
