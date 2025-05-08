@@ -2,75 +2,68 @@ package com.yourname.serverstats;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.yourname.serverstats.listeners.PlayerListener;
 import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.plugin.messaging.PluginMessageListener;
-import org.bukkit.entity.Player;
 
 import java.io.ByteArrayOutputStream;
-import java.util.HashMap;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 public class ServerStats extends JavaPlugin implements PluginMessageListener {
-    
-    private static final String CHANNEL_NAME = "eaglercraft:stats";
+    private static final String CHANNEL = "eaglercraft:stats";
     private StatsCollector statsCollector;
     private final Gson gson = new GsonBuilder().create();
-    
+
     @Override
     public void onEnable() {
-        // Initialize stats collector
-        statsCollector = new StatsCollector(this);
-        
-        // Register event listeners
-        getServer().getPluginManager().registerEvents(new PlayerListener(this), this);
-        
-        // Register plugin channel
-        Bukkit.getMessenger().registerOutgoingPluginChannel(this, CHANNEL_NAME);
-        Bukkit.getMessenger().registerIncomingPluginChannel(this, CHANNEL_NAME, this);
-        
-        // Schedule periodic stats updates
-        Bukkit.getScheduler().runTaskTimerAsynchronously(this, this::broadcastStats, 100L, 100L);
-        
-        getLogger().info("ServerStats plugin enabled");
+        this.statsCollector = new StatsCollector(this);
+
+        // register listener & messaging channel
+        Bukkit.getPluginManager().registerEvents(new PlayerListener(this), this);
+        this.getServer().getMessenger().registerOutgoingPluginChannel(this, CHANNEL);
+        this.getServer().getMessenger().registerIncomingPluginChannel(this, CHANNEL, this);
+
+        // schedule a repeating task: broadcast every 5 seconds (100 ticks)
+        Bukkit.getScheduler()
+              .runTaskTimerAsynchronously(this, this::broadcastStats, 100L, 100L);
+
+        getLogger().info("ServerStats enabled on Paper 1.21.4");
     }
-    
+
     @Override
     public void onDisable() {
-        // Unregister plugin channel
-        Bukkit.getMessenger().unregisterOutgoingPluginChannel(this);
-        Bukkit.getMessenger().unregisterIncomingPluginChannel(this, CHANNEL_NAME, this);
-        
-        getLogger().info("ServerStats plugin disabled");
+        this.getServer().getMessenger().unregisterOutgoingPluginChannel(this, CHANNEL);
+        this.getServer().getMessenger().unregisterIncomingPluginChannel(this, CHANNEL, this);
+        getLogger().info("ServerStats disabled");
     }
-    
-    @Override
-    public void onPluginMessageReceived(String channel, Player player, byte[] message) {
-        if (!channel.equals(CHANNEL_NAME)) return;
-        
-        // Handle incoming requests (if any)
-        // For now, we just broadcast stats periodically, so we don't need to handle incoming messages
-    }
-    
-    public void broadcastStats() {
+
+    private void broadcastStats() {
         try {
-            Map<String, Object> statsData = statsCollector.collectStats();
-            String jsonStats = gson.toJson(statsData);
-            
-            // Convert to bytes and send to all players
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            outputStream.write(jsonStats.getBytes());
-            
-            for (Player player : Bukkit.getOnlinePlayers()) {
-                player.sendPluginMessage(this, CHANNEL_NAME, outputStream.toByteArray());
+            Map<String, Object> data = statsCollector.collectStats();
+            String json = gson.toJson(data);
+
+            // prepare message
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            baos.write(json.getBytes(StandardCharsets.UTF_8));
+            byte[] payload = baos.toByteArray();
+
+            // send to all online players
+            for (Player p : Bukkit.getOnlinePlayers()) {
+                p.sendPluginMessage(this, CHANNEL, payload);
             }
         } catch (Exception e) {
-            getLogger().warning("Error broadcasting stats: " + e.getMessage());
+            getLogger().warning("Failed to broadcast stats: " + e.getMessage());
             e.printStackTrace();
         }
     }
-    
+
+    @Override
+    public void onPluginMessageReceived(String channel, Player player, byte[] message) {
+        // if you want to handle incoming requests, do it here
+    }
+
     public StatsCollector getStatsCollector() {
         return statsCollector;
     }
