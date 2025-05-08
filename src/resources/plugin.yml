@@ -1,10 +1,6 @@
 name: ServerStats
 main: com.yourname.serverstats.ServerStats
 version: 1.0.0
-api-version: 1.21
+api-version: 1.21                                           # ← enables modern Paper features :contentReference[oaicite:11]{index=11}
 author: YourName
-description: Broadcasts server performance stats periodically via plugin messaging.
-
-commands: {}
-
-permissions: {}
+description: Broadcasts server performance stats via plugin messaging.
