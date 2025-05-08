@@ -2,6 +2,9 @@ package com.yourname.serverstats;
 
 import org.bukkit.Bukkit;
 import org.bukkit.World;
+import org.bukkit.plugin.Plugin;
+import com.destroystokyo.paper.ServerPaperMethods; // for getTPS()
+
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.OperatingSystemMXBean;
@@ -9,70 +12,65 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class StatsCollector {
-    
-    private final ServerStats plugin;
-    private long totalPlayTime = 0;
-    private int maxPlayersOnline = 0;
+    private final Plugin plugin;
     private final long startTime;
-    
-    public StatsCollector(ServerStats plugin) {
+    private long totalPlayTime = 0;
+    private int maxPlayersEver = 0;
+
+    public StatsCollector(Plugin plugin) {
         this.plugin = plugin;
         this.startTime = System.currentTimeMillis();
+
+        // also schedule a per-second updater to tally playtime
+        Bukkit.getScheduler().runTaskTimer(this.plugin, this::updateCumulative, 20L, 20L);
     }
-    
+
     public Map<String, Object> collectStats() {
-        Map<String, Object> stats = new HashMap<>();
-        
-        // Server info
-        stats.put("serverVersion", Bukkit.getVersion());
-        stats.put("onlinePlayers", Bukkit.getOnlinePlayers().size());
-        stats.put("maxPlayers", Bukkit.getMaxPlayers());
-        stats.put("uptimeSeconds", (System.currentTimeMillis() - startTime) / 1000);
-        stats.put("tps", calculateTPS());
-        
-        // Performance metrics
-        MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
-        OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
-        
-        long usedMemory = memoryBean.getHeapMemoryUsage().getUsed() / (1024 * 1024);
-        long maxMemory  = memoryBean.getHeapMemoryUsage().getMax()  / (1024 * 1024);
-        
-        stats.put("memoryUsedMB", usedMemory);
-        stats.put("memoryMaxMB",  maxMemory);
-        stats.put("systemLoadAvg", osBean.getSystemLoadAverage());
-        
-        // World info
-        Map<String, Object> worlds = new HashMap<>();
-        for (World world : Bukkit.getWorlds()) {
-            Map<String, Object> worldInfo = new HashMap<>();
-            worldInfo.put("entities", world.getEntities().size());
-            worldInfo.put("loadedChunks", world.getLoadedChunks().length);
-            worldInfo.put("playersInWorld", world.getPlayers().size());
-            worlds.put(world.getName(), worldInfo);
+        Map<String, Object> out = new HashMap<>();
+
+        // basic server info
+        out.put("version", Bukkit.getVersion());
+        out.put("online", Bukkit.getOnlinePlayers().size());
+        out.put("maxPlayers", Bukkit.getMaxPlayers());
+        out.put("uptimeSec", (System.currentTimeMillis() - startTime) / 1000L);
+        // Paper-specific: instant TPS (1-minute average)
+        double tps = ((ServerPaperMethods) Bukkit.getServer()).getTPS()[0];
+        out.put("tps", Math.min(20.0, tps));
+
+        // JVM memory
+        MemoryMXBean mem = ManagementFactory.getMemoryMXBean();
+        long usedMB = mem.getHeapMemoryUsage().getUsed() / (1024 * 1024);
+        long maxMB  = mem.getHeapMemoryUsage().getMax()  / (1024 * 1024);
+        out.put("memUsedMB", usedMB);
+        out.put("memMaxMB",  maxMB);
+
+        // OS load
+        OperatingSystemMXBean os = ManagementFactory.getOperatingSystemMXBean();
+        out.put("loadAvg", os.getSystemLoadAverage());
+
+        // world details
+        Map<String, Map<String, Object>> worlds = new HashMap<>();
+        for (World w : Bukkit.getWorlds()) {
+            Map<String, Object> info = new HashMap<>();
+            info.put("entities", w.getEntities().size());
+            info.put("chunks", w.getLoadedChunks().length);
+            info.put("players", w.getPlayers().size());
+            worlds.put(w.getName(), info);
         }
-        stats.put("worlds", worlds);
-        
-        // Cumulative stats
-        stats.put("maxPlayersEver", maxPlayersOnline);
-        stats.put("totalPlayTimeSeconds", totalPlayTime);
-        
-        return stats;
+        out.put("worlds", worlds);
+
+        // cumulative
+        out.put("maxOnlineEver", maxPlayersEver);
+        out.put("totalPlayTimeSec", totalPlayTime);
+
+        return out;
     }
-    
-    private double calculateTPS() {
-        // Paper Server#getTPS() gives [1min, 5min, 15min] averages
-        return Math.min(20.0, Bukkit.getServer().getTPS()[0]);
-    }
-    
-    /**
-     * Call this on a repeating task (e.g. every second) to track playtime
-     * and record new maximum online-player counts.
-     */
-    public void updatePlayerStats() {
+
+    private void updateCumulative() {
         int curr = Bukkit.getOnlinePlayers().size();
-        if (curr > maxPlayersOnline) {
-            maxPlayersOnline = curr;
+        totalPlayTime += curr;      // one second per player per tick
+        if (curr > maxPlayersEver) {
+            maxPlayersEver = curr;
         }
-        totalPlayTime += curr;  // adds one second per online player per call
     }
 }
