@@ -1,0 +1,34 @@
+# EaglercraftStats Configuration
+
+# Endpoint to send statistics to
+stats-endpoint: "http://localhost:8088/api/stats"
+
+# Secret key for authenticating with the endpoint (should match proxy configuration)
+auth-key: "changeThisToASecureRandomString"
+
+# How often to collect and send statistics (in seconds)
+update-interval: 10
+
+# Maximum history points to keep for time-series data
+history-points: 60
+
+# Statistics to collect
+collect:
+  server: true
+  players: true
+  world: true
+  resources: true
+  
+# Detailed collection settings
+details:
+  # Whether to include player list with UUIDs
+  include-player-list: true
+  
+  # Whether to track per-world statistics
+  per-world-stats: true
+  
+  # Whether to collect CPU usage (may affect performance slightly)
+  collect-cpu-usage: true
+  
+  # Whether to check world size on disk (may affect performance on larger servers)
+  measure-world-size: true
