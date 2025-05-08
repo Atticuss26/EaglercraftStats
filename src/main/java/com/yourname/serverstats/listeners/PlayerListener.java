@@ -7,22 +7,21 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
 public class PlayerListener implements Listener {
-    
     private final ServerStats plugin;
-    
+
     public PlayerListener(ServerStats plugin) {
         this.plugin = plugin;
     }
-    
+
     @EventHandler
-    public void onPlayerJoin(PlayerJoinEvent event) {
-        // You can add custom join stats here
-        plugin.getStatsCollector().updatePlayerStats();
+    public void onJoin(PlayerJoinEvent e) {
+        // trigger an immediate stats update when someone joins
+        plugin.getStatsCollector().collectStats();
     }
-    
+
     @EventHandler
-    public void onPlayerQuit(PlayerQuitEvent event) {
-        // You can add custom quit stats here
-        plugin.getStatsCollector().updatePlayerStats();
+    public void onQuit(PlayerQuitEvent e) {
+        // likewise on quit
+        plugin.getStatsCollector().collectStats();
     }
 }
